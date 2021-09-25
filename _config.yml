@@ -1,7 +1,7 @@
-title:              Clean Blog
+title:              BlogPosts  
 email:              petr.hrobar@merck.com
-description:        A Blog Theme by Start Bootstrap
-author:             Start Bootstrap
+description:        Mostly statistics/ML and programming
+author:             Petr Hrobar
 baseurl:            ""
 url:                "https://petrhrobar.github.io"
 
@@ -10,7 +10,7 @@ twitter_username:
 github_username:    petrhrobar
 facebook_username:  
 instagram_username:  
-linkedin_username: https://www.linkedin.com/in/petr-hroba%C5%99-2418a1215/
+linkedin_username: petr-hroba%C5%99-2418a1215
 
 # Add your google-analytics ID here to activate google analytics
 google_analytics:   UA-XXXXXXXXX-X # out your google-analytics code
@@ -23,3 +23,4 @@ plugins:
   - jekyll-feed
   - jekyll-paginate
   - jekyll-sitemap ## Uncomment this line to silently generate a sitemaps.org compliant sitemap for your Jekyll site
+highlighter: rouge

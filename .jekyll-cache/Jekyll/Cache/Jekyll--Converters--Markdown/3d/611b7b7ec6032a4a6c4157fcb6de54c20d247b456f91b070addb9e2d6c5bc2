@@ -1,0 +1,327 @@
+I";�<p>In this example we shall apply Principal component analysis (PCA) and Clustering methods for classifying paintings by <a href="https://cs.wikipedia.org/wiki/Bob_Ross">Bob Ross.</a> Data used for purposes of this analysis are comming from tidyverse community <img src="https://latex.codecogs.com/png.latex?%5Ctextbf%7Btidytuesday%7D" alt="\textbf{tidytuesday}" title="\textbf{tidytuesday}" /> project. See more infromations <a href="https://github.com/rfordatascience/tidytuesday">here.</a></p>
+
+<p>We are interested in dataset named <img src="https://latex.codecogs.com/png.latex?%5Ctextbf%7BBob%20Ross%20-%20painting%20by%20the%20numbers%7D" alt="\textbf{Bob Ross - painting by the numbers}" title="\textbf{Bob Ross - painting by the numbers}" />. Dataset as well as its description can be found <a href="https://github.com/rfordatascience/tidytuesday/tree/master/data/2019/2019-08-06">here.</a></p>
+
+<p>First, let’s do some basic data cleaning:</p>
+
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># packages</span><span class="w">
+</span><span class="n">library</span><span class="p">(</span><span class="n">tidyverse</span><span class="p">)</span><span class="w">
+</span><span class="n">library</span><span class="p">(</span><span class="n">reshape2</span><span class="p">)</span><span class="w">
+</span><span class="n">library</span><span class="p">(</span><span class="n">knitr</span><span class="p">)</span><span class="w">
+</span><span class="n">library</span><span class="p">(</span><span class="n">kableExtra</span><span class="p">)</span><span class="w">
+
+
+</span><span class="n">theme_set</span><span class="p">(</span><span class="n">theme_light</span><span class="p">())</span><span class="w">
+
+</span><span class="c1"># Loading the data</span><span class="w">
+</span><span class="n">bob_ross</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">readr</span><span class="o">::</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2019/2019-08-06/bob-ross.csv"</span><span class="p">)</span><span class="w">
+
+</span><span class="c1"># Data Cleaning</span><span class="w">
+</span><span class="n">df_cleaned</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> 
+  </span><span class="n">bob_ross</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">janitor</span><span class="o">::</span><span class="n">clean_names</span><span class="p">()</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">gather</span><span class="p">(</span><span class="n">element</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="n">episode</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">mutate</span><span class="p">(</span><span class="n">title</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">str_to_title</span><span class="p">(</span><span class="n">str_remove_all</span><span class="p">(</span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="s1">'"'</span><span class="p">)),</span><span class="w">
+         </span><span class="n">element</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">str_to_title</span><span class="p">(</span><span class="n">str_replace</span><span class="p">(</span><span class="n">element</span><span class="p">,</span><span class="w"> </span><span class="s2">"_"</span><span class="p">,</span><span class="w"> </span><span class="s2">" "</span><span class="p">)))</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">extract</span><span class="p">(</span><span class="n">episode</span><span class="p">,</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="s2">"season"</span><span class="p">,</span><span class="w"> </span><span class="s2">"episode"</span><span class="p">),</span><span class="w"> </span><span class="s2">"S(.*)E(.*)"</span><span class="p">,</span><span class="w">
+          </span><span class="n">convert</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">T</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">arrange</span><span class="p">(</span><span class="n">season</span><span class="p">,</span><span class="w"> </span><span class="n">episode</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">filter</span><span class="p">(</span><span class="n">value</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="m">1</span><span class="p">)</span><span class="w">
+
+
+</span><span class="n">df_cleaned</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">head</span><span class="p">()</span><span class="w">
+</span></code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>## # A tibble: 6 x 5
+##   season episode title               element   value
+##    &lt;int&gt;   &lt;int&gt; &lt;chr&gt;               &lt;chr&gt;     &lt;dbl&gt;
+## 1      1       1 A Walk In The Woods Bushes        1
+## 2      1       1 A Walk In The Woods Deciduous     1
+## 3      1       1 A Walk In The Woods Grass         1
+## 4      1       1 A Walk In The Woods River         1
+## 5      1       1 A Walk In The Woods Tree          1
+## 6      1       1 A Walk In The Woods Trees         1
+</code></pre></div></div>
+
+<p>Data are cleaned and gathered, i.e. each row is the element of painting e.g. “Beach”, “Tree” etc, where we observe wheater one particular painting has perticulars elements.</p>
+
+<h1 id="principal-component-analysis">Principal Component Analysis.</h1>
+
+<p>Principal component analysis is a Dimensionality reduction technique that has been around for almost a century now. It turns out that PCA is so popular it has been independently reinvendet multiple times. Here we provide basic math overview of technique and various approahces to computation itself.</p>
+
+<p>Let’s say we have data matrix <img src="https://latex.codecogs.com/png.latex?D" alt="D" title="D" /> that is <img src="https://latex.codecogs.com/png.latex?n%20%5Ctimes%20m" alt="n \times m" title="n \times m" /> matrix. Where <img src="https://latex.codecogs.com/png.latex?n" alt="n" title="n" /> is the number of observation and <img src="https://latex.codecogs.com/png.latex?m" alt="m" title="m" /> is the number of observed features (variables). Firstly, we standardize the data so that columns means are equal to zero.</p>
+
+<p>Steps above can be perform in <img src="https://latex.codecogs.com/png.latex?%5Ctextbf%7BR%7D" alt="\textbf{R}" title="\textbf{R}" /> using following code:</p>
+
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">D</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">df_cleaned</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">acast</span><span class="p">(</span><span class="n">title</span><span class="w"> </span><span class="o">~</span><span class="w"> </span><span class="n">element</span><span class="p">)</span><span class="w">
+
+</span><span class="n">D</span><span class="p">[</span><span class="nf">c</span><span class="p">(</span><span class="m">1</span><span class="o">:</span><span class="m">10</span><span class="p">)</span><span class="w"> </span><span class="p">,</span><span class="nf">c</span><span class="p">(</span><span class="m">25</span><span class="o">:</span><span class="m">35</span><span class="p">)]</span><span class="w">
+</span></code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>##                     Flowers Fog Framed Grass Guest Half Circle_frame
+## A Mild Winter's Day       0   0      0     0     0                 0
+## A Pretty Autumn Day       0   0      0     1     0                 0
+## A Walk In The Woods       0   0      0     1     0                 0
+## Absolutely Autumn         0   0      0     1     0                 0
+## After The Rain            0   0      0     0     0                 0
+## Anatomy Of A Wave         0   0      0     0     1                 0
+## Angler's Haven            0   0      0     0     0                 0
+## Arctic Beauty             0   0      0     1     0                 0
+## Arctic Winter Day         0   0      0     0     0                 0
+## Arizona Splendor          0   0      0     1     0                 0
+##                     Half Oval_frame Hills Lake Lighthouse Mill
+## A Mild Winter's Day               0     0    0          0    0
+## A Pretty Autumn Day               0     0    0          0    0
+## A Walk In The Woods               0     0    0          0    0
+## Absolutely Autumn                 0     0    0          0    0
+## After The Rain                    0     0    0          0    0
+## Anatomy Of A Wave                 0     0    0          0    0
+## Angler's Haven                    0     0    1          0    0
+## Arctic Beauty                     0     0    0          0    0
+## Arctic Winter Day                 0     0    1          0    0
+## Arizona Splendor                  0     0    0          0    0
+</code></pre></div></div>
+
+<p>Now we have created a data matrix <img src="https://latex.codecogs.com/png.latex?D" alt="D" title="D" />, where rows of the matrix are particular paintings and columns are indicading binary presence of the element in the painting. Now, we want to standardize the matrix and hence create a centered matrix <img src="https://latex.codecogs.com/png.latex?C" alt="C" title="C" />, where column’s means are equal to zero.</p>
+
+<p>Formally, data centering can be written as:</p>
+
+<p><img src="https://latex.codecogs.com/png.latex?C_%7Bij%7D%20%3D%20D_%7Bij%7D%20-%20%5Chat%7BD%7D_%7Bj%7D" alt="C_{ij} = D_{ij} - \hat{D}_{j}" title="C_{ij} = D_{ij} - \hat{D}_{j}" /></p>
+
+<p>.</p>
+
+<p>Additionally, if each variables of data (columns of <img src="https://latex.codecogs.com/png.latex?D" alt="D" title="D" />) are measured on different units, we should not only subtract column means from each observation, but also devide each observation by associated column’s standart deviation. This conversion proces is called the <img src="https://latex.codecogs.com/png.latex?%5Ctextbf%7BZ-standardization%7D" alt="\textbf{Z-standardization}" title="\textbf{Z-standardization}" /> and it is commontly used to transfort normal distribution to standart normal distribution. However, since all of our columns in data matrix are binary indicators of element presence, no variance transformations are required.</p>
+
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Centering the data - substracting columns means from each column</span><span class="w">
+</span><span class="n">C</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">t</span><span class="p">(</span><span class="n">t</span><span class="p">(</span><span class="n">D</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">colMeans</span><span class="p">(</span><span class="n">D</span><span class="p">))</span><span class="w">
+
+</span><span class="c1"># Column means are now equal to zero.</span><span class="w">
+</span><span class="n">colMeans</span><span class="p">(</span><span class="n">C</span><span class="p">[</span><span class="w"> </span><span class="p">,</span><span class="nf">c</span><span class="p">(</span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="m">4</span><span class="p">,</span><span class="w"> </span><span class="m">5</span><span class="p">,</span><span class="w"> </span><span class="m">10</span><span class="p">)])</span><span class="w">
+</span></code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>## Aurora Borealis           Beach            Boat          Cactus 
+##   -1.830613e-19   -3.242800e-18   -1.830613e-19   -5.840526e-19
+</code></pre></div></div>
+
+<h3 id="mathematical-solution-to-pca">Mathematical Solution to PCA</h3>
+
+<p>As mentioned above, PCA has multiple approaches to the solution. We will focus on two solution that are at disposal.</p>
+
+<ul>
+  <li>
+    <ol>
+      <li>Eigenvector and values decomposition of Variance-Covariance Matrix</li>
+    </ol>
+  </li>
+  <li>
+    <ol>
+      <li>Singular value decompositon of Centered data Matrix</li>
+    </ol>
+  </li>
+</ul>
+
+<p>First approach of solving PCA requires to have the <img src="https://latex.codecogs.com/png.latex?%5Ctextbf%7BVariance-Covariance%20Matrix%7D" alt="\textbf{Variance-Covariance Matrix}" title="\textbf{Variance-Covariance Matrix}" /> of (Centered) dataset. Using Centered data matrix we can calculate the variance-covariance matrix as:</p>
+
+<p><img src="https://latex.codecogs.com/png.latex?C%5E%7BT%7DC%5Cfrac%7B1%7D%7Bn-1%7D" alt="C^{T}C\frac{1}{n-1}" title="C^{T}C\frac{1}{n-1}" /></p>
+
+<p>After this step, we can calculate PCA as a eigenvector and eigenvalue decompositon of variance-covariance matrix.</p>
+
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Variance-Covariance Matrix</span><span class="w">
+</span><span class="n">COV</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="p">(</span><span class="n">t</span><span class="p">(</span><span class="n">C</span><span class="p">)</span><span class="w"> </span><span class="o">%*%</span><span class="w"> </span><span class="n">C</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="m">1</span><span class="o">/</span><span class="p">(</span><span class="n">nrow</span><span class="p">(</span><span class="n">C</span><span class="p">)</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="m">1</span><span class="p">)</span><span class="w">
+
+</span><span class="c1"># eigenvectors and eigenvalues of covariance matrix</span><span class="w">
+</span><span class="n">PCA_eigen</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">eigen</span><span class="p">(</span><span class="n">COV</span><span class="p">)</span><span class="w">
+
+</span><span class="c1"># Weights of elements on first four PC space.</span><span class="w">
+</span><span class="n">PCA_eigen</span><span class="o">$</span><span class="n">vectors</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">as.data.frame</span><span class="p">()</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">mutate</span><span class="p">(</span><span class="n">elements</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">colnames</span><span class="p">(</span><span class="n">D</span><span class="p">))</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">select</span><span class="p">(</span><span class="n">elements</span><span class="p">,</span><span class="w"> </span><span class="n">PC1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">V1</span><span class="p">,</span><span class="w"> </span><span class="n">PC2</span><span class="w"> </span><span class="o">=</span><span class="w">  </span><span class="n">V2</span><span class="p">,</span><span class="w"> </span><span class="n">PC3</span><span class="w"> </span><span class="o">=</span><span class="w">  </span><span class="n">V3</span><span class="p">,</span><span class="w"> </span><span class="n">PC4</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">V4</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">tibble</span><span class="p">()</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">head</span><span class="p">()</span><span class="w">
+</span></code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>## # A tibble: 6 x 5
+##   elements             PC1      PC2     PC3      PC4
+##   &lt;chr&gt;              &lt;dbl&gt;    &lt;dbl&gt;   &lt;dbl&gt;    &lt;dbl&gt;
+## 1 Apple Frame     -0.00179  0.00366 0.00213  0.00527
+## 2 Aurora Borealis  0.00428  0.00617 0.0151  -0.00180
+## 3 Barn            -0.0357   0.0446  0.0561   0.0173 
+## 4 Beach           -0.129   -0.223   0.0521   0.0114 
+## 5 Boat            -0.00728 -0.00791 0.00363  0.0101 
+## 6 Bridge          -0.0125   0.0262  0.00991 -0.00214
+</code></pre></div></div>
+
+<p>This approach was performed just to demenstrate basic algebra behind the PCA.</p>
+
+<p>Second approach of solving PCA uses <img src="https://latex.codecogs.com/png.latex?%5Ctextbf%7BSingular%20Value%20Decomposition%20%28SVD%29%7D" alt="\textbf{Singular Value Decomposition (SVD)}" title="\textbf{Singular Value Decomposition (SVD)}" />. It turns out that computing variance-covariance matrix and then performing eigenvectors and eigenvalues caluclation is not necessarily the most computationally efficient way of performing PCA.</p>
+
+<p>Now let’s use <a href="https://en.wikipedia.org/wiki/Singular_value_decomposition">SVD</a> to obtain PCA results. Firstly, we take our center matrix <img src="https://latex.codecogs.com/png.latex?C" alt="C" title="C" /> and perform SVD.</p>
+
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># SVD on center matrix C</span><span class="w">
+</span><span class="n">PCA_svd</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">svd</span><span class="p">(</span><span class="n">C</span><span class="p">)</span><span class="w">
+
+</span><span class="c1"># Weights of elements on first four PC space.</span><span class="w">
+</span><span class="n">PCA_svd</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">broom</span><span class="o">::</span><span class="n">tidy</span><span class="p">(</span><span class="n">matrix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"v"</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">filter</span><span class="p">(</span><span class="n">PC</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="m">4</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">mutate</span><span class="p">(</span><span class="n">elements</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">colnames</span><span class="p">(</span><span class="n">D</span><span class="p">)[</span><span class="n">column</span><span class="p">])</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">pivot_wider</span><span class="p">(</span><span class="n">names_from</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PC</span><span class="p">,</span><span class="w">
+              </span><span class="n">names_prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"PC"</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">select</span><span class="p">(</span><span class="o">-</span><span class="n">column</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">head</span><span class="p">()</span><span class="w">
+</span></code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>## # A tibble: 6 x 5
+##   elements             PC1      PC2      PC3      PC4
+##   &lt;chr&gt;              &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;
+## 1 Apple Frame     -0.00179  0.00366 -0.00213  0.00527
+## 2 Aurora Borealis  0.00428  0.00617 -0.0151  -0.00180
+## 3 Barn            -0.0357   0.0446  -0.0561   0.0173 
+## 4 Beach           -0.129   -0.223   -0.0521   0.0114 
+## 5 Boat            -0.00728 -0.00791 -0.00363  0.0101 
+## 6 Bridge          -0.0125   0.0262  -0.00991 -0.00214
+</code></pre></div></div>
+
+<p>So we can see that both results are equal. Quickly, we can use build-in function to confirm that the results are exactly whe same:</p>
+
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># Build in function (Hastie)</span><span class="w">
+</span><span class="n">PCA_func</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> </span><span class="n">prcomp</span><span class="p">(</span><span class="n">D</span><span class="p">,</span><span class="w"> </span><span class="n">center</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">T</span><span class="p">)</span><span class="w">
+
+</span><span class="c1"># Weights of elements on first four PC space.</span><span class="w">
+</span><span class="n">PCA_func</span><span class="o">$</span><span class="n">rotation</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w">
+  </span><span class="n">as.data.frame</span><span class="p">()</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">mutate</span><span class="p">(</span><span class="n">elements</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">colnames</span><span class="p">(</span><span class="n">D</span><span class="p">))</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">select</span><span class="p">(</span><span class="n">elements</span><span class="p">,</span><span class="w"> </span><span class="n">PC1</span><span class="p">,</span><span class="w"> </span><span class="n">PC2</span><span class="p">,</span><span class="w"> </span><span class="n">PC3</span><span class="p">,</span><span class="w"> </span><span class="n">PC4</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">tibble</span><span class="p">()</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">head</span><span class="p">()</span><span class="w">
+</span></code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>## # A tibble: 6 x 5
+##   elements             PC1      PC2      PC3      PC4
+##   &lt;chr&gt;              &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;
+## 1 Apple Frame     -0.00179  0.00366 -0.00213  0.00527
+## 2 Aurora Borealis  0.00428  0.00617 -0.0151  -0.00180
+## 3 Barn            -0.0357   0.0446  -0.0561   0.0173 
+## 4 Beach           -0.129   -0.223   -0.0521   0.0114 
+## 5 Boat            -0.00728 -0.00791 -0.00363  0.0101 
+## 6 Bridge          -0.0125   0.0262  -0.00991 -0.00214
+</code></pre></div></div>
+
+<p>Since all the results are the same, we can from now on work only with one PCA object. Let’s work with object we named <em>PCA_svd</em>. We are interested in what percentage of variability is explained by each component.</p>
+
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCA_svd</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">broom</span><span class="o">::</span><span class="n">tidy</span><span class="p">(</span><span class="n">matrix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"d"</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">select</span><span class="p">(</span><span class="o">-</span><span class="n">std.dev</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">gather</span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="o">-</span><span class="n">PC</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">ggplot</span><span class="p">(</span><span class="n">aes</span><span class="p">(</span><span class="n">PC</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">,</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">key</span><span class="p">))</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">geom_line</span><span class="p">(</span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">1</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">geom_point</span><span class="p">(</span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2.5</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">scale_y_continuous</span><span class="p">(</span><span class="n">labels</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">scales</span><span class="o">::</span><span class="n">percent_format</span><span class="p">())</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">scale_x_continuous</span><span class="p">(</span><span class="n">breaks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nf">c</span><span class="p">(</span><span class="n">seq</span><span class="p">(</span><span class="m">0</span><span class="p">,</span><span class="w"> </span><span class="m">66</span><span class="p">,</span><span class="w"> </span><span class="n">by</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">5</span><span class="p">)))</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">labs</span><span class="p">(</span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"PC"</span><span class="p">,</span><span class="w"> 
+       </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Percentage of variability explained"</span><span class="p">,</span><span class="w"> 
+       </span><span class="n">title</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Percentage of variability explained by each PC"</span><span class="p">,</span><span class="w"> 
+       </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Type of measure"</span><span class="p">)</span><span class="w">
+</span></code></pre></div></div>
+
+<p><img src="/img/posts/PCA_bob_ross/figure-markdown_github/unnamed-chunk-7-1.png" alt="" /></p>
+
+<p>As can be seen, using just 2 PCs we are able to explain about 27% of variablitity of elements presence. Using 3 PCs number of variability explained will increase to 37%.</p>
+
+<p>Let’s examine whether some form of clustering is present.</p>
+
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PCA_svd</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">broom</span><span class="o">::</span><span class="n">tidy</span><span class="p">(</span><span class="n">matrix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"v"</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">filter</span><span class="p">(</span><span class="n">PC</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="m">4</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">mutate</span><span class="p">(</span><span class="n">elements</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">colnames</span><span class="p">(</span><span class="n">D</span><span class="p">)[</span><span class="n">column</span><span class="p">])</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">pivot_wider</span><span class="p">(</span><span class="n">names_from</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PC</span><span class="p">,</span><span class="w">
+              </span><span class="n">names_prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"PC"</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">select</span><span class="p">(</span><span class="o">-</span><span class="n">column</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">ggplot</span><span class="p">(</span><span class="n">aes</span><span class="p">(</span><span class="n">PC1</span><span class="p">,</span><span class="w"> </span><span class="n">PC2</span><span class="p">,</span><span class="w"> </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">elements</span><span class="p">))</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">geom_point</span><span class="p">(</span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"dodgerblue"</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">geom_text</span><span class="p">(</span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"gray21"</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">geom_hline</span><span class="p">(</span><span class="n">aes</span><span class="p">(</span><span class="n">yintercept</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0</span><span class="p">),</span><span class="w"> </span><span class="n">lty</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"red"</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">geom_vline</span><span class="p">(</span><span class="n">aes</span><span class="p">(</span><span class="n">xintercept</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0</span><span class="p">),</span><span class="w"> </span><span class="n">lty</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"red"</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">labs</span><span class="p">(</span><span class="n">title</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Element's Weights on PC1 and PC2 space"</span><span class="p">)</span><span class="w">
+</span></code></pre></div></div>
+
+<p><img src="/img/posts/PCA_bob_ross/figure-markdown_github/unnamed-chunk-8-1.png" alt="" /></p>
+
+<p>Above we can see minor clustering of elements of the paintings that tend to appear together. For example, <img src="https://latex.codecogs.com/png.latex?Mountain%2C%20Snow%2C%20Winter" alt="Mountain, Snow, Winter" title="Mountain, Snow, Winter" />. Still a lot of variability is not explained using simple 2-dimensions. Now we can inspect what paintings tend to be more similiar:</p>
+
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">set.seed</span><span class="p">(</span><span class="m">2020</span><span class="p">)</span><span class="w">
+
+</span><span class="n">Paintings_clusters</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> 
+  </span><span class="n">PCA_svd</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">broom</span><span class="o">::</span><span class="n">tidy</span><span class="p">(</span><span class="n">matrix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"u"</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">filter</span><span class="p">(</span><span class="n">PC</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="m">4</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">mutate</span><span class="p">(</span><span class="n">painting</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rownames</span><span class="p">(</span><span class="n">D</span><span class="p">)[</span><span class="n">row</span><span class="p">])</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">pivot_wider</span><span class="p">(</span><span class="n">names_from</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PC</span><span class="p">,</span><span class="w">
+              </span><span class="n">names_prefix</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"PC"</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">select</span><span class="p">(</span><span class="n">painting</span><span class="p">,</span><span class="w"> </span><span class="n">PC1</span><span class="p">,</span><span class="w"> </span><span class="n">PC2</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">filter</span><span class="p">(</span><span class="n">grepl</span><span class="p">(</span><span class="s2">"Winter's|Beach|Waves|Waterfall|sun|Sun"</span><span class="p">,</span><span class="w"> </span><span class="n">painting</span><span class="p">))</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">mutate</span><span class="p">(</span><span class="n">color_element</span><span class="w"> </span><span class="o">=</span><span class="w"> 
+           </span><span class="n">case_when</span><span class="p">(</span><span class="w">
+             </span><span class="n">grepl</span><span class="p">(</span><span class="s2">"Winter's"</span><span class="p">,</span><span class="w"> </span><span class="n">painting</span><span class="p">)</span><span class="w"> </span><span class="o">~</span><span class="w"> </span><span class="s2">"Winter Theme"</span><span class="p">,</span><span class="w">
+             </span><span class="n">grepl</span><span class="p">(</span><span class="s2">"Beach"</span><span class="p">,</span><span class="w"> </span><span class="n">painting</span><span class="p">)</span><span class="w"> </span><span class="o">~</span><span class="w"> </span><span class="s2">"Beach Theme"</span><span class="p">,</span><span class="w">
+             </span><span class="n">grepl</span><span class="p">(</span><span class="s2">"Waves"</span><span class="p">,</span><span class="w"> </span><span class="n">painting</span><span class="p">)</span><span class="w"> </span><span class="o">~</span><span class="w"> </span><span class="s2">"Beach Theme"</span><span class="p">))</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">filter</span><span class="p">(</span><span class="o">!</span><span class="nf">is.na</span><span class="p">(</span><span class="n">color_element</span><span class="p">))</span><span class="w">
+
+</span><span class="n">Paintings_clusters</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">ggplot</span><span class="p">(</span><span class="n">aes</span><span class="p">(</span><span class="n">PC1</span><span class="p">,</span><span class="w"> </span><span class="n">PC2</span><span class="p">,</span><span class="w"> </span><span class="n">label</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">painting</span><span class="p">,</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">color_element</span><span class="p">))</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">geom_point</span><span class="p">()</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">geom_text</span><span class="p">(</span><span class="n">check_overlap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">TRUE</span><span class="p">,</span><span class="w"> </span><span class="n">size</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">3</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">geom_hline</span><span class="p">(</span><span class="n">aes</span><span class="p">(</span><span class="n">yintercept</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0</span><span class="p">),</span><span class="w"> </span><span class="n">lty</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"red"</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">geom_vline</span><span class="p">(</span><span class="n">aes</span><span class="p">(</span><span class="n">xintercept</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">0</span><span class="p">),</span><span class="w"> </span><span class="n">lty</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="n">color</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"red"</span><span class="p">)</span><span class="w"> </span><span class="o">+</span><span class="w"> 
+  </span><span class="n">labs</span><span class="p">(</span><span class="n">title</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"Painting's clustering using first two Principal Components"</span><span class="p">,</span><span class="w"> 
+       </span><span class="n">subtitle</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"We are inspecting themes of elements, e.g. Winter, beach, Sun etc."</span><span class="p">)</span><span class="w">
+</span></code></pre></div></div>
+
+<p><img src="/img/posts/PCA_bob_ross/figure-markdown_github/unnamed-chunk-9-1.png" alt="" /></p>
+
+<p>We can see that we can somewhat cluster paintings using PCA of painting’s elements. Lets inspect some paintings here.</p>
+
+<div class="language-r highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Clusts</span><span class="w"> </span><span class="o">&lt;-</span><span class="w"> 
+  </span><span class="n">Paintings_clusters</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">select</span><span class="p">(</span><span class="n">painting</span><span class="p">,</span><span class="w"> </span><span class="n">color_element</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">mutate</span><span class="p">(</span><span class="n">color_element</span><span class="w"> </span><span class="o">=</span><span class="w"> 
+           </span><span class="n">case_when</span><span class="p">(</span><span class="n">color_element</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s2">"Winter Theme"</span><span class="w"> </span><span class="o">~</span><span class="w"> </span><span class="m">1</span><span class="p">,</span><span class="w">
+                     </span><span class="kc">TRUE</span><span class="w">  </span><span class="o">~</span><span class="w"> </span><span class="m">2</span><span class="p">))</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">pivot_wider</span><span class="p">(</span><span class="n">names_from</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">color_element</span><span class="p">,</span><span class="w"> </span><span class="n">values_from</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">painting</span><span class="p">)</span><span class="w"> </span><span class="o">%&gt;%</span><span class="w"> 
+  </span><span class="n">apply</span><span class="p">(</span><span class="m">2</span><span class="p">,</span><span class="w"> </span><span class="n">unlist</span><span class="p">)</span><span class="w">
+  
+
+</span><span class="n">Clusts</span><span class="w">
+</span></code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>##      1                      2                      
+## [1,] "A Mild Winter's Day"  "Balmy Beach"          
+## [2,] "Perfect Winter's Day" "Rowboat On The Beach" 
+## [3,] "Winter's Elegance"    "Secluded Beach"       
+## [4,] "Winter's Grace"       "Sunset Over The Waves"
+## [5,] "Winter's Paradise"    "Waves Of Wonder"      
+## [6,] "Winter's Peace"       "Windy Waves"
+</code></pre></div></div>
+
+<p>Now we can inspect how much similiar are each paintings within the clusters.</p>
+
+<h3 id="first-cluster">First cluster</h3>
+
+<p><img src="/img/posts/PCA_bob_ross/Bob_ross paintings/A Mild Winter's Day.png" align="middle" width="150" /> 
+<img src="/img/posts/PCA_bob_ross/Bob_ross paintings/A Perfect Winter Day.png" align="middle" width="150" />
+ <img src="/img/posts/PCA_bob_ross/Bob_ross paintings/Winter Elegance.png" align="middle" width="150" />
+  <img src="/img/posts/PCA_bob_ross/Bob_ross paintings/Winter's Grace.png" align="middle" width="150" />
+   <img src="/img/posts/PCA_bob_ross/Bob_ross paintings/Winter Paradise.png" align="middle" width="150" />
+    <img src="/img/posts/PCA_bob_ross/Bob_ross paintings/Winter's Peace.png" align="middle" width="150" /></p>
+
+<h3 id="second-cluster">Second cluster</h3>
+
+<p><img src="/img/posts/PCA_bob_ross/Bob_ross paintings/A.png" align="middle" width="150" /> <img src="/img/posts/PCA_bob_ross/Bob_ross paintings/B.png" align="middle" width="150" /> <img src="/img/posts/PCA_bob_ross/Bob_ross paintings/C.png" align="middle" width="150" /> <img src="/img/posts/PCA_bob_ross/Bob_ross paintings/D.png" align="middle" width="150" /> <img src="/img/posts/PCA_bob_ross/Bob_ross paintings/E.png" align="middle" width="150" /> <img src="/img/posts/PCA_bob_ross/Bob_ross paintings/F.png" align="middle" width="150" /></p>
+
+<h1 id="note">NOTE</h1>
+
+<p>all painting used for purposes of this application of PCA are property of ®Bob Ross.</p>
+:ET
